@@ -264,3 +264,9 @@ def wc_l(path):
 # @timeout(10)
 def file_line_count(path):
     return wc_l(path)
+
+
+def time_now():
+    """Return current datetime as string format."""
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

@@ -141,7 +141,7 @@ def vectorization_chroma_nodes():
 
     # chroma
     index_name = "node-onlyname"
-    names = [i.name for i in client.list_collections()]
+    names = client.list_collections()
     if index_name in names:
         client.delete_collection(index_name)
     collection = client.create_collection(index_name)
@@ -213,7 +213,7 @@ def vectorization_chroma_edges():
 
     # chroma
     index_name = "kqapro-db-edges"
-    names = [i.name for i in client.list_collections()]
+    names = client.list_collections()
     if index_name in names:
         client.delete_collection(index_name)
     collection = client.create_collection(index_name)

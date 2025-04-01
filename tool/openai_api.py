@@ -38,6 +38,7 @@ def chatgpt(
     presence_penalty=0,
     frequency_penalty=0,
     logit_bias={},
+    db=None,
 ):
     """
     role:
