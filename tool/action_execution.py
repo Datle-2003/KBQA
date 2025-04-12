@@ -175,21 +175,43 @@ def chat_with_LLM(
             "frequency_penalty": 0.0,
         }
 
+
     # for local LLM server.
     elif model_name in LLM_FINETUNING_SERVER_MAP:
-        if model_name.startswith("LLMs/"):
-            from api.api_llm_client import local_vLLM_api as _llm_func
 
-            logger.warning("Using vLLM as the LLM server.")
+        try:
+            import torch
+            cuda_available = torch.cuda.is_available()
+        except Exception as e:
+            cuda_available = False
+            logger.error(f"torch is not installed. {e}")
+
+        if model_name.startswith("LLMs/"):
+            if cuda_available:
+                # local vLLM server
+                from api.api_llm_client import local_vLLM_api as _llm_func
+                logger.info("Using vLLM as the LLM server.")
+            else:
+                from api.api_llm_client import local_CPU_LLM_api as _llm_func
+                logger.info("CUDA not available. Using CPU-optimized LLM server.")
         else:
             from api.api_llm_client import local_LLM_api as _llm_func
+            logger.info("Using local LLM server.")
 
-        config = {
-            "max_new_tokens": 384,
-            "do_sample": True,
-            "repetition_penalty": 1,
-            "num_return_sequences": 6,
-        }
+        if cuda_available or not model_name.startswith("LLMs/"):
+            config = {
+                "max_new_tokens": 512,
+                "do_sample": True,
+                "repetition_penalty": 1,
+                "num_return_sequences": 6,
+            }
+        else:
+            config = {
+                "max_new_tokens": 320,
+                "do_sample": True,  
+                "repetition_penalty": 1,
+                "num_return_sequences": 1, 
+            }
     else:
         raise ValueError(f"model_name: {model_name} is not supported.")
 
@@ -240,7 +262,7 @@ def chat_with_LLM(
                 db=db,
                 messages=messages,
                 stop=["\nObservation", "\nThought"],
-                temperature=0.7,  # self-consistency:0.5 chat-KBQA:0.7
+                temperature=0.2,  
                 **config,
             )
         except BadRequestError as e:

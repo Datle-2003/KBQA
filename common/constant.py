@@ -4,15 +4,23 @@ We use flask to build the API server for the local LLMs. The following is the po
 
 LLM_FINETUNING_SERVER_MAP = {
     # without finetuning
-    "LLMs/meta-llama/Llama-2-7b-chat-hf": "http://localhost:18200",  # only 4096.
-    "LLMs/togethercomputer/Llama-2-7B-32K-Instruct": "http://localhost:18201",
-    "LLMs/lmsys/vicuna-7b-v1.5-16k": "http://localhost:18202",
-    "LLMs/mistralai/Mistral-7B-Instruct-v0.2": "http://localhost:18203",
-    "LLMs/THUDM/chatglm3-6b": "http://localhost:18204",
+    "LLMs/TinyLlama/TinyLlama-1.1B-Chat-v1.0/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6/": "http://localhost:18210",
+    "LLMs/Llama/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "http://localhost:18200", 
+    
+    # "LLMs/togethercomputer/Llama-2-7B-32K-Instruct": "http://localhost:18201",
+    # "LLMs/lmsys/vicuna-7b-v1.5-16k": "http://localhost:18202",
+    # "LLMs/mistralai/Mistral-7B-Instruct-v0.2": "http://localhost:18203",
+    # "LLMs/THUDM/chatglm3-6b": "http://localhost:18204",
+  
     # fine-tuned LLMs
     "Merge-Llama-2-7b-hf-full-zero3-epoch10": "http://localhost:18101",
     "Merge-Mistral-7B-v0.1-full-zero3-epoch10": "http://localhost:18101",
     "Llama-2-13b-hf-full-zero3-epoch10": "http://localhost:18100",
+}
+
+CPU_LLM_SERVER_MAP = {
+    "LLMs/TinyLlama/TinyLlama-1.1B-Chat-v1.0/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6/": "http://localhost:18210",
+    "LLMs/Llama/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "http://localhost:18200", 
 }
 
 # tool api server

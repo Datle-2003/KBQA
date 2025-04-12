@@ -31,8 +31,11 @@ def predictor_text(model_name_or_path):
 
     return _gen
 
+from loguru import logger
 
 def check_and_format_history(messages: Union[List[str], List[Dict]]):
+    logger.info(f"VALIDATION DEBUG - Raw messages: {messages}") 
+    print("RAW MESSAGES: ", messages)
     """
     must be like this:
     [
@@ -50,7 +53,14 @@ def check_and_format_history(messages: Union[List[str], List[Dict]]):
         raise Exception("messages is empty")
     if isinstance(messages[0], str):
         if not messages[0].startswith("Q:"):
-            raise Exception("messages[0] must start with `Q:`. get: " + messages[0])
+            # raise Exception("messages[0] must start with `Q:`. get: " + messages[0])
+            q_index = messages[0].rfind("\nQ:")
+            if q_index > 0:
+                messages[0] = messages[0][q_index+1:]
+            else:
+                messages[0] = "Q: " + messages[0]
+                # logger.warning("messages[0] must start with `Q:`. get: " + messages[0])
+      
         for i in range(1, len(messages)):
             if i % 2 == 1:
                 pass

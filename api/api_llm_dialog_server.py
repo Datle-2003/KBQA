@@ -1,12 +1,14 @@
 import asyncio
 import time
+import uuid
 from traceback import print_exc
-from typing import List
+from typing import List, Optional, Union, Dict, Any
 
 import fire
 import uvicorn
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
+from pydantic import BaseModel, Field
+import torch
 
 from predict.dialog_predictor import predictor_history
 
@@ -31,6 +33,7 @@ class InputData(BaseModel):
     temperature: float = 1.0
     repetition_penalty: float = 1.0
     num_return_sequences: int = 1
+    use_cpu: bool = False 
 
     def json(self):
         return {
@@ -44,10 +47,10 @@ class InputData(BaseModel):
             "temperature": self.temperature,
             "repetition_penalty": self.repetition_penalty,
             "num_return_sequences": self.num_return_sequences,
+            "use_cpu": self.use_cpu,
         }
 
-
-def start_api(model_name_or_path, use_vllm=False, db="fb", port=18000):
+def start_api(model_name_or_path, use_vllm=False, use_cpu=False, db="fb", port=18000):
     """
     Return
         - response["choices"][0]["message"]["content"]
@@ -55,16 +58,22 @@ def start_api(model_name_or_path, use_vllm=False, db="fb", port=18000):
         - response["usage"]["completion_tokens"]
     """
     assert db in ["fb", "kqapro", "metaqa", "common"], "db must be fb or kqapro or metaqa"
-    print("model_name_or_path:", model_name_or_path)
-    print("use_vllm:", use_vllm)
-    print("port:", port)
+
+    cuda_available = torch.cuda.is_available() and not use_cpu
+    print("Model path:", model_name_or_path)
+    print("Use vLLM:", use_vllm)
+    print("Use CPU:", use_cpu)
+    print("CUDA available:", cuda_available)
+    print("Port:", port)
 
     app = FastAPI()
 
-    llm = predictor_history(model_name_or_path, db, use_vllm=use_vllm)
+    llm = predictor_history(model_name_or_path, db, use_vllm=use_vllm, use_cpu=use_cpu)
 
     @app.post(f"/{db}")
     async def _chat(data: InputData):
+        cpu_mode = data.use_cpu or use_cpu
+        
         gen_config = {
             "max_new_tokens": data.max_new_tokens,
             "num_beams": data.num_beams,
@@ -73,6 +82,7 @@ def start_api(model_name_or_path, use_vllm=False, db="fb", port=18000):
             "temperature": data.temperature,
             "repetition_penalty": data.repetition_penalty,
             "num_return_sequences": data.num_return_sequences,
+            "use_cpu": cpu_mode,
         }
         messages = data.json()["messages"]
 
@@ -92,17 +102,28 @@ def start_api(model_name_or_path, use_vllm=False, db="fb", port=18000):
         }
         return response
 
+    # Test endpoint
     @app.get(f"/{db}/test")
     async def _test():
         current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        return {"status": "ok", "start_time": current_time, "db": db}
+        hardware_info = "CPU mode" if use_cpu else "CUDA available" if cuda_available else "CPU mode (CUDA unavailable)"
+        return {
+            "status": "ok", 
+            "start_time": current_time, 
+            "db": db,
+            "hardware": hardware_info,
+            "model": model_name_or_path,
+            "use_vllm": use_vllm
+        }
 
-    config = uvicorn.Config(app=app, host="0.0.0.0", port=port, workers=4)
+    config = uvicorn.Config(app=app, host="0.0.0.0", port=port, workers=1 if use_cpu else 4)
     server = uvicorn.Server(config)
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(server.serve())
+    asyncio.run(server.serve())
 
 
 if __name__ == "__main__":
     fire.Fire(start_api)
+
+
+    

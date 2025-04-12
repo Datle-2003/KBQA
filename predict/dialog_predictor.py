@@ -28,6 +28,7 @@ class ChatCompletionMessage:
         }
 
 
+
 class Choice:
     def __init__(self, index: int, message: ChatCompletionMessage, finish_reason="stop"):
         self.finish_reason = finish_reason
@@ -48,10 +49,8 @@ def make_responce(prompt_tokens: int, completion_tokens: int, out_texts: List[st
     """
     response = {}
     response["usage"] = {}
-    response["usage"]["prompt_tokens"] = prompt_tokens  # input_ids.numel()
-    response["usage"][
-        "completion_tokens"
-    ] = completion_tokens  # output_ids.numel() - input_ids.numel() * len(out_texts)
+    response["usage"]["prompt_tokens"] = prompt_tokens
+    response["usage"]["completion_tokens"] = completion_tokens
     choices = []
     for i, r in enumerate(out_texts):
         choices.append(
@@ -66,6 +65,7 @@ def make_responce(prompt_tokens: int, completion_tokens: int, out_texts: List[st
             )
         )
     response["choices"] = [c.json() for c in choices]
+    response["response"] = out_texts[0] if out_texts else ""
     return response
 
 
@@ -80,31 +80,10 @@ def process_stop_words(model_output, tokenizer, skip_len: int, stop_words: List[
     if stop_words:
         for i in range(len(out_texts)):
             for _stop in stop_words:
-                out_texts[i] = out_texts[i].split(_stop)[0]
+                if _stop in out_texts[i]:
+                    out_texts[i] = out_texts[i].split(_stop)[0]
 
     return out_texts
-
-
-def demo_usage(model_name_or_path):
-    """
-    usage:
-        llm = predictor("output/kqapro_llama2_7b")
-        res = llm("who is the president of the united states?")
-    """
-    tokenizer = load_tokenizer(model_name_or_path, 8000)
-    model = load_model(model_name_or_path, tokenizer, training=False)
-
-    def _gen(query):
-        input_ids = tokenizer(query, return_tensors="pt").input_ids.to("cuda:0")
-        for _i in range(5):
-            output = model.generate(input_ids, max_new_tokens=256, temperature=0.1, do_sample=True)
-            res = tokenizer.decode(output[0], skip_special_tokens=True)
-            res = res[len(query) :].strip()
-            if res:
-                return res
-        return ""
-
-    return _gen
 
 
 def check_and_format_history(messages: Union[List[str], List[Dict]]):
@@ -121,8 +100,11 @@ def check_and_format_history(messages: Union[List[str], List[Dict]]):
         ...
     ]
     """
+    logger.info("Raw message: " + str(messages))
+    
     if not messages:
         raise Exception("messages is empty")
+        
     if isinstance(messages[0], str):
         if not messages[0].startswith("Q:"):
             raise Exception("messages[0] must start with `Q:`. get: " + messages[0])
@@ -133,7 +115,7 @@ def check_and_format_history(messages: Union[List[str], List[Dict]]):
                 if not messages[i].startswith("Observation:"):
                     raise Exception(f"messages[{i}] must start with `Observation:`. get: {messages[i]}")
         return messages
-
+    
     # 0: {"role": "system", "content": "xxx"}
     # 1: {"role": "user", "content": "xxx"} environment
     # 2: {"role": "assistant", "content": "xxx"} LLM
@@ -152,7 +134,8 @@ def check_and_format_history(messages: Union[List[str], List[Dict]]):
     else:
         raise Exception("messages must be List[str] or List[Dict]")
     return messages
-
+        
+    return messages
 
 def history_to_input(messages: List[str], desc="short", db="kqapro") -> str:
     if db == "kqapro":
@@ -163,7 +146,6 @@ def history_to_input(messages: List[str], desc="short", db="kqapro") -> str:
         from common.constant import TOOL_DESC_SHORT_FB as desc_short
     elif db == "metaqa":
         from common.constant import TOOL_DESC_FULL_METAQA as desc_full
-
         desc_short = desc_full
     else:
         raise Exception("db must be kqapro or fb or metaqa")
@@ -180,54 +162,70 @@ def history_to_input(messages: List[str], desc="short", db="kqapro") -> str:
     return text
 
 
-def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False):
-    """
-    Single turn prediction.
-    usage:
-        llm = predictor_history("output/kqapro_llama2_7b", db="kqapro")
-        res = llm(["Q: who is the president of the united states?"], max_new_tokens=256)
-    response is the same as ChatGPT.
-    - response["usage"]["prompt_tokens"]
-    - response["usage"]["completion_tokens"]
-    - response["choices"][0]["message"]["content"]
-        - Choice(finish_reason='stop', index=0, message=ChatCompletionMessage(content="As an AI assistant, I don't have a physical presence or a family like humans do. I am created and maintained by a team of engineers and developers.", role='assistant', function_call=None, tool_calls=None)),
-    """
+def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False, use_cpu=False):
+    # Handle conflicts in parameter settings
+    # Basicly load tokenizer and model
     if use_vllm and use_mii:
         raise Exception("use_vllm and use_mii cannot be True at the same time")
+    
+    if use_vllm and use_cpu:
+        logger.warning("vLLM requires CUDA. Disabling vLLM and using CPU mode.")
+        use_vllm = False
+    
+    if use_mii and use_cpu:
+        logger.warning("MII requires CUDA. Disabling MII and using CPU mode.")
+        use_mii = False
+    
+    # Flag for using open source LLM inference
     FLAG_OPEN_LLM_INFER = False
-
+    
+    # Check model name for direct inference compatibility
     for mname in [
         "meta-llama/Llama-2-7b-chat-hf",
         "mistralai/Mistral-7B-Instruct-v0.2",
-        "THUDM/chatglm3-6b",
-        "baichuan-inc/Baichuan2-7B-Chat",
-        "01-ai/Yi-6B-Chat",
         "meta-llama/Llama-2-13b-chat-hf",
-        "baichuan-inc/Baichuan2-13B-Chat",
-        "01-ai/Yi-34B-Chat",
     ]:
         if model_name_or_path.endswith(mname):
             FLAG_OPEN_LLM_INFER = True
             logger.warning(f"Load {mname} for direct inference")
             sleep(5)
             break
-
+    
+    # Determine device based on CPU flag
+    device = "cpu" if use_cpu else "cuda:0" if torch.cuda.is_available() else "cpu"
+    if device == "cpu" and not use_cpu:
+        logger.warning("CUDA not available. Defaulting to CPU mode.")
+        use_cpu = True
+    
+    # Load tokenizer (always needed)
     tokenizer = load_tokenizer(model_name_or_path, 8192)
+    logger.info(f"Tokenizer loaded for {model_name_or_path}")
 
-    if use_vllm:
+    if use_cpu:
+        from transformers import AutoModelForCausalLM
+        
+        logger.info(f"Loading model {model_name_or_path} in CPU mode...")
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name_or_path,
+            device_map="cpu",
+            torch_dtype=torch.float32,
+            low_cpu_mem_usage=True
+        )
+        logger.info("CPU model loaded successfully")
+
+    elif use_vllm:
         from vllm import LLM, SamplingParams
-
+        
         model = LLM(
             model=model_name_or_path,
             tensor_parallel_size=torch.cuda.device_count(),
             dtype="auto",
         )
-        logger.warning("vllm model loaded")
-
-    # deepspeed mii
+        logger.warning("vLLM model loaded")
+        
     elif use_mii:
         import mii
-
+        
         rand_int = random.randint(0, 10000)
         model = mii.pipeline(
             model_name_or_path=model_name_or_path,
@@ -235,8 +233,11 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             zmq_port_number=20001 + rand_int,
         )
         logger.warning("MII model loaded")
+        
     else:
-        model = load_model(model_name_or_path, tokenizer, training=False)
+        model = load_model(model_name_or_path, training=False)
+        logger.info("Standard model loaded")
+
 
     def _gen(messages: Union[List[str], List[Dict]], stop: List[str] = None, **kwargs):
         """
@@ -262,8 +263,12 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             {"role": "user", "content": "Observation: xxx"},
             ]
         """
-        messages = deepcopy(messages)
 
+        use_cpu_flag = kwargs.pop("use_cpu", False)
+
+        messages = deepcopy(messages)
+        
+        # Format input based on model type
         if FLAG_OPEN_LLM_INFER:
             encodeds = tokenizer.apply_chat_template(
                 conversation=messages, tokenize=True, add_generation_prompt=True
@@ -281,17 +286,28 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         print("query")
         print(query)
 
+        # Set up generation config with defaults
         gen_config = {
-            "max_new_tokens": 512,
+            "max_new_tokens": 512 if not use_cpu else 320,
             "temperature": 0.1,
             "do_sample": True,
             "top_p": 1,
             "repetition_penalty": 1,
             "num_return_sequences": 1,
         }
+        
+        # Update with user-provided parameters
         gen_config.update(kwargs)
-        input_ids = tokenizer(query, return_tensors="pt", truncation=True).input_ids.to("cuda:0")
-
+        
+        # CPU-specific parameter adjustments
+        if use_cpu:
+            if gen_config.get("num_beams", 1) > 1:
+                logger.warning(f"Reducing num_beams from {gen_config['num_beams']} to 1 for CPU mode")
+                gen_config["num_beams"] = 1
+                
+        # Tokenize input
+        input_ids = tokenizer(query, return_tensors="pt", truncation=True).input_ids.to(device)
+        
         if use_vllm:
             sampling_params = SamplingParams(
                 temperature=gen_config["temperature"],
@@ -303,20 +319,12 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             )
             outputs = model.generate(query, sampling_params, use_tqdm=False)
             if outputs and outputs[0].outputs:
-                # response = outputs[0].outputs[0].text
                 out_texts = [i.text for i in sorted(outputs[0].outputs, key=lambda x: x.index)]
-                # 不一样，这里的 output_ids_length 只计算out
                 completion_tokens = sum([len(o.token_ids) for o in outputs[0].outputs])
             else:
-                raise Exception("vllm output is empty")
+                raise Exception("vLLM output is empty")
+                
         elif use_mii:
-            # deepspeed mii
-            # The returned response is a list of Response objects. We can access several details about the generation (e.g., response[0].prompt_length):
-            # generated_text: str Text generated by the model.
-            # prompt_length: int Number of tokens in the original prompt.
-            # generated_length: int Number of tokens generated.
-            # finish_reason: str Reason for stopping generation. stop indicates the EOS token was generated and length indicates the generation reached max_new_tokens or max_length.
-
             response = model(
                 [query] * gen_config["num_return_sequences"],
                 max_new_tokens=gen_config["max_new_tokens"],
@@ -326,21 +334,21 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             )
             out_texts = [i.generated_text for i in response]
             for i in range(len(out_texts)):
-                for _stop in stop:
-                    out_texts[i] = out_texts[i].split(_stop)[0]
+                for _stop in stop or []:
+                    if _stop in out_texts[i]:
+                        out_texts[i] = out_texts[i].split(_stop)[0]
             completion_tokens = sum([i.generated_length for i in response])
-
+            
         else:
-            # DEBUG
-            # print("gen_config: ", gen_config)
             gen_config["return_dict_in_generate"] = True
             stopping_criteria = StoppingCriteriaList([])
-            stopping_criteria.append(MaxTimeCriteria(max_time=120))
+            stopping_criteria.append(MaxTimeCriteria(max_time=300 if use_cpu else 120))  # Longer timeout for CPU
 
             if stop is not None:
                 stopping_criteria.append(StoppingCriteriaSub(tokenizer=tokenizer, stop=stop))
             output = model.generate(input_ids, stopping_criteria=stopping_criteria, **gen_config)
 
+            # Process output
             for sp_tok in tokenizer.special_tokens_map.values():
                 query = query.replace(sp_tok, "")
             out_texts = process_stop_words(
@@ -365,6 +373,23 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
 
     return _gen
 
+
+def test3():
+    # Test with CPU mode
+    llm = predictor_history("LLMs/mistralai/Mistral-7B-Instruct-v0.2", use_cpu=True)
+    res = llm(
+        [
+            {"role": "user", "content": "Q: What currency does China use?"},
+        ],
+        stop=["\n\n", "\n3."],
+        num_return_sequences=1,
+    )
+    print(res)
+
+    response = res
+    print(response["usage"])
+    print(response["usage"]["prompt_tokens"])
+    print(response["usage"]["completion_tokens"])
 
 def test():
     llm = predictor_history("LLMs/mistralai/Mistral-7B-Instruct-v0.2", use_vllm=1)
