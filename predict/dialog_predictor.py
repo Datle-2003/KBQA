@@ -7,7 +7,6 @@ import torch
 from loguru import logger
 from transformers import MaxTimeCriteria, StoppingCriteriaList
 from transformers.generation.utils import GenerateDecoderOnlyOutput
-
 from predict.stop_criteria import StoppingCriteriaSub
 from train.ds_main import load_model, load_tokenizer
 
@@ -100,14 +99,14 @@ def check_and_format_history(messages: Union[List[str], List[Dict]]):
         ...
     ]
     """
-    logger.info("Raw message: " + str(messages))
-    
+
+
     if not messages:
         raise Exception("messages is empty")
         
     if isinstance(messages[0], str):
-        if not messages[0].startswith("Q:"):
-            raise Exception("messages[0] must start with `Q:`. get: " + messages[0])
+        # if not messages[0].startswith("Q:"):
+        #     raise Exception("messages[0] must start with `Q:`. get: " + messages[0])
         for i in range(1, len(messages)):
             if i % 2 == 1:
                 pass
@@ -133,8 +132,6 @@ def check_and_format_history(messages: Union[List[str], List[Dict]]):
         messages = check_and_format_history(_history)
     else:
         raise Exception("messages must be List[str] or List[Dict]")
-    return messages
-        
     return messages
 
 def history_to_input(messages: List[str], desc="short", db="kqapro") -> str:

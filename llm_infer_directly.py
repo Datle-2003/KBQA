@@ -10,6 +10,7 @@ from loguru import logger
 
 from common.common_utils import multi_process, read_json, save_to_json
 from tool.openai_api import chatgpt
+from tool.server_api import server_chat
 
 """
 gpt-4-1106-preview Answer (8 shots)
@@ -72,14 +73,23 @@ def single(d, instruction, demos, model_name, n, save_dir):
     q = d["question"].strip()
     prompt = f"{instruction}\n\n{demos}\n\nQ: {q}\nA: "
 
-    response = chatgpt(
+    # response = chatgpt(
+    #     prompt=prompt,
+    #     model=model_name,
+    #     temperature=0.7,
+    #     top_p=1,
+    #     n=n,
+    #     stop=["\n\n", "\n"],
+    #     max_tokens=256,
+    # )
+    response = server_chat(
         prompt=prompt,
         model=model_name,
         temperature=0.7,
         top_p=1,
         n=n,
         stop=["\n\n", "\n"],
-        max_tokens=256,
+        max_tokens=512,
     )
 
     if response is None or "usage" not in response:
@@ -139,7 +149,7 @@ def run(dataset, setting, n=1, model_name="gpt-4-1106-preview"):
     multi_process(
         items=data,
         process_function=single,
-        cpu_num=30,
+        cpu_num=2,
         debug=0,
         dummy=True,
         instruction=instruction,

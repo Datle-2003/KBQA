@@ -84,7 +84,7 @@ def start_api(model_name_or_path, use_vllm=False, use_cpu=False, db="fb", port=1
             "num_return_sequences": data.num_return_sequences,
             "use_cpu": cpu_mode,
         }
-        messages = data.json()["messages"]
+        messages = data.model_dump()["messages"]
 
         start_time = time.time()
         try:

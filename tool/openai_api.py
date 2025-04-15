@@ -7,6 +7,7 @@ from typing import List
 import httpx
 import openai
 from tenacity import retry, stop_after_attempt, wait_fixed
+from loguru import logger
 
 magic_url, http_client = None, None
 
@@ -70,6 +71,10 @@ def chatgpt(
             {"role": "user", "content": prompt},
         ]
     )
+
+    logger.debug(f"ChatGPT request: {messages}")
+
+    
 
     response = client.chat.completions.create(
         model=model,

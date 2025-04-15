@@ -7,7 +7,7 @@ from openai import BadRequestError
 
 from api.api_db_client import get_actions_api
 from common.common_utils import colorful, save_to_json
-from common.constant import LLM_FINETUNING_SERVER_MAP
+from common.constant import LLM_SERVER_MAP
 
 SearchNodes, SearchGraphPatterns, ExecuteSPARQL = None, None, None
 
@@ -164,6 +164,9 @@ def chat_with_LLM(
     assert "question" in d, "question must be provided."
     assert save_dir is not None, "save_dir must be provided."
 
+    logger.info(f"model_name: {model_name}")
+
+
     if model_name.startswith("gpt-"):
         from tool.openai_api import chatgpt
 
@@ -173,12 +176,10 @@ def chat_with_LLM(
             "n": 6,
             "presence_penalty": 0.0,
             "frequency_penalty": 0.0,
-        }
-
+        }        
 
     # for local LLM server.
-    elif model_name in LLM_FINETUNING_SERVER_MAP:
-
+    elif model_name in LLM_SERVER_MAP:
         try:
             import torch
             cuda_available = torch.cuda.is_available()
@@ -186,32 +187,20 @@ def chat_with_LLM(
             cuda_available = False
             logger.error(f"torch is not installed. {e}")
 
-        if model_name.startswith("LLMs/"):
-            if cuda_available:
-                # local vLLM server
-                from api.api_llm_client import local_vLLM_api as _llm_func
-                logger.info("Using vLLM as the LLM server.")
-            else:
-                from api.api_llm_client import local_CPU_LLM_api as _llm_func
-                logger.info("CUDA not available. Using CPU-optimized LLM server.")
+
+        if cuda_available:
+            from api.api_llm_client import local_vLLM_api as _llm_func
+            logger.info("Using local LLM server.")
         else:
             from api.api_llm_client import local_LLM_api as _llm_func
-            logger.info("Using local LLM server.")
-
-        if cuda_available or not model_name.startswith("LLMs/"):
-            config = {
-                "max_new_tokens": 512,
-                "do_sample": True,
-                "repetition_penalty": 1,
-                "num_return_sequences": 6,
-            }
-        else:
-            config = {
-                "max_new_tokens": 320,
-                "do_sample": True,  
-                "repetition_penalty": 1,
-                "num_return_sequences": 1, 
-            }
+            logger.info("Using llm server.")
+        
+        config = {  
+            "max_new_tokens": 512,
+            "do_sample": True,
+            "repetition_penalty": 1,
+            "num_return_sequences": 6,
+        }
     else:
         raise ValueError(f"model_name: {model_name} is not supported.")
 

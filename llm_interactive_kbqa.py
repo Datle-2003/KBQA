@@ -1,13 +1,13 @@
-# import os
-# from glob import glob
+import os
+from glob import glob
 
-# import fire
-# from loguru import logger
+import fire
+from loguru import logger
 
-# from common.common_utils import multi_process, read_json
-# from common.constant import TOOL_DESC_FULL_FB, TOOL_DESC_FULL_KQAPRO, TOOL_DESC_FULL_METAQA
-# from llm_infer_directly import load_test_data
-# from tool.action_execution import chat_with_LLM
+from common.common_utils import multi_process, read_json
+from common.constant import TOOL_DESC_FULL_FB, TOOL_DESC_FULL_KQAPRO, TOOL_DESC_FULL_METAQA
+from llm_infer_directly import load_test_data
+from tool.action_execution import chat_with_LLM
 
 # """
 # the difference between dataset is 
@@ -294,6 +294,8 @@ class KBQARunner:
         data = self._skip_existing(data)
         logger.info(f"Final data size: {len(data)}")
 
+
+        # return 
         multi_process(
             items=data,
             process_function=chat_with_LLM,
