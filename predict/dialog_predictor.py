@@ -194,7 +194,6 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         logger.warning("CUDA not available. Defaulting to CPU mode.")
         use_cpu = True
     
-    # Load tokenizer (always needed)
     tokenizer = load_tokenizer(model_name_or_path, 8192)
     logger.info(f"Tokenizer loaded for {model_name_or_path}")
 
@@ -205,10 +204,12 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         model = AutoModelForCausalLM.from_pretrained(
             model_name_or_path,
             device_map="cpu",
-            torch_dtype=torch.float32,
+            torch_dtype=torch.float16,
             low_cpu_mem_usage=True
         )
         logger.info("CPU model loaded successfully")
+
+        
 
     elif use_vllm:
         from vllm import LLM, SamplingParams
@@ -261,11 +262,26 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             ]
         """
 
+        try:
+            logger.info("Testing model with a simple prompt after loading...")
+            test_input = "Q: What is the capital of America?\nThought:"
+            input_ids = tokenizer(test_input, return_tensors="pt").input_ids.to("cpu")
+            output = model.generate(input_ids, max_new_tokens=10)
+            answer = tokenizer.decode(output[0], skip_special_tokens=True)
+            logger.info(f"Test output: {answer}")
+        except Exception as e:
+            logger.error(f"Test inference failed: {e}")
+
+
+
+        import time
+        logger.info("=== [KBQA] _gen called ===")
         use_cpu_flag = kwargs.pop("use_cpu", False)
 
         messages = deepcopy(messages)
         
         # Format input based on model type
+        logger.info("Formatting input...")
         if FLAG_OPEN_LLM_INFER:
             encodeds = tokenizer.apply_chat_template(
                 conversation=messages, tokenize=True, add_generation_prompt=True
@@ -279,9 +295,7 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         if not query.endswith("Thought:"):
             query += "\nThought: "
 
-        # DEBUG
-        print("query")
-        print(query)
+        logger.info(f"Query ready: {query[:200]}...")
 
         # Set up generation config with defaults
         gen_config = {
@@ -303,9 +317,23 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
                 gen_config["num_beams"] = 1
                 
         # Tokenize input
+        logger.info("Tokenizing input...")
         input_ids = tokenizer(query, return_tensors="pt", truncation=True).input_ids.to(device)
-        
+        logger.info(f"Input_ids shape: {input_ids.shape}")
+
+        logger.info("Checking model forward pass...")
+        try:
+            with torch.no_grad():
+                t0 = time.time()
+                out = model(input_ids)
+                logger.info(f"Model forward pass OK, time: {time.time() - t0:.2f}s")
+        except Exception as e:
+            logger.error(f"Model forward pass failed: {e}")
+            raise
+
+        logger.info("Starting model.generate...")
         if use_vllm:
+            logger.info("Using vLLM generate...")
             sampling_params = SamplingParams(
                 temperature=gen_config["temperature"],
                 top_p=gen_config["top_p"],
@@ -322,6 +350,7 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
                 raise Exception("vLLM output is empty")
                 
         elif use_mii:
+            logger.info("Using MII generate...")
             response = model(
                 [query] * gen_config["num_return_sequences"],
                 max_new_tokens=gen_config["max_new_tokens"],
@@ -338,6 +367,7 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             
         else:
             gen_config["return_dict_in_generate"] = True
+            logger.info("Using HuggingFace generate...")
             stopping_criteria = StoppingCriteriaList([])
             stopping_criteria.append(MaxTimeCriteria(max_time=300 if use_cpu else 120))  # Longer timeout for CPU
 
@@ -359,7 +389,8 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             completion_tokens = output.numel() - input_ids.numel() * len(out_texts)
 
         # DEBUG
-        print("out_texts", out_texts)
+        logger.info(f"Output: {out_texts}")
+        logger.info(f"Output length: {len(out_texts)}")
 
         response = make_responce(
             prompt_tokens=input_ids.numel(),

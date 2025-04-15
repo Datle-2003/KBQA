@@ -3,7 +3,7 @@ We use flask to build the API server for the local LLMs. The following is the po
 """
 
 LLM_SERVER_MAP = {
-    "/kaggle/working/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "https://c4ed-34-147-110-164.ngrok-free.app"
+    "/kaggle/working/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "https://7618-35-237-13-65.ngrok-free.app"
 }
 
 

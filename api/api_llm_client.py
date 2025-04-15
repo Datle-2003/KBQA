@@ -90,39 +90,39 @@ def local_LLM_api(
         "num_return_sequences": num_return_sequences,
     }
 
-    try:
-        response = requests.post(url, data=json.dumps(data), headers=headers, timeout=120)
-        if response.status_code != 200:
-            raise
-        return response.json()
+    # try:
+    #     response = requests.post(url, data=json.dumps(data), headers=headers, timeout=120)
+    #     if response.status_code != 200:
+    #         raise
+    #     return response.json()
 
-    except Exception as e:
-        logger.error(f"request error: {e}")
-        # logger.error(f"response.status_code: {response.status_code}")
-        logger.error(f"messages: {messages}")
-        return None
+    # except Exception as e:
+    #     logger.error(f"request error: {e}")
+    #     # logger.error(f"response.status_code: {response.status_code}")
+    #     logger.error(f"messages: {messages}")
+    #     return None
 
     # using curl instead
-    # import json
-    # # Ghi payload ra file tạm
-    # with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp:
-    #     json.dump(data, temp)
-    #     temp_path = temp.name
+    import json
+    # Ghi payload ra file tạm
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp:
+        json.dump(data, temp)
+        temp_path = temp.name
 
-    # try:
-    #     curl_cmd = f'curl -X POST "{url}" -H "Content-Type: application/json" -H "accept: application/json" -d @{temp_path} --silent'
-    #     result = subprocess.run(shlex.split(curl_cmd), capture_output=True, text=True, timeout=120)
-    #     if result.returncode != 0:
-    #         logger.error(f"Curl failed: {result.stderr}")
-    #         return None
-    #     try:
-    #         return json.loads(result.stdout)
-    #     except Exception as e:
-    #         logger.error(f"Cannot parse curl response: {result.stdout[:200]} ...")
-    #         return None
-    # finally:
-    #     if os.path.exists(temp_path):
-    #         os.unlink(temp_path)
+    try:
+        curl_cmd = f'curl -X POST "{url}" -H "Content-Type: application/json" -H "accept: application/json" -d @{temp_path} --silent'
+        result = subprocess.run(shlex.split(curl_cmd), capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            logger.error(f"Curl failed: {result.stderr}")
+            return None
+        try:
+            return json.loads(result.stdout)
+        except Exception as e:
+            logger.error(f"Cannot parse curl response: {result.stdout[:200]} ...")
+            return None
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
 
 
 
