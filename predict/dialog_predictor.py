@@ -205,7 +205,7 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         model = AutoModelForCausalLM.from_pretrained(
             model_name_or_path,
             device_map="cpu",
-            torch_dtype=torch.float32,
+            torch_dtype=torch.float16,
             low_cpu_mem_usage=True
         )
         logger.info("CPU model loaded successfully")
