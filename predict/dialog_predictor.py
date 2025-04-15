@@ -208,6 +208,15 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             low_cpu_mem_usage=True
         )
         logger.info("CPU model loaded successfully")
+        try:
+            logger.info("Testing model with a simple prompt after loading...")
+            test_input = "Q: What is the capital of France?\nThought:"
+            input_ids = tokenizer(test_input, return_tensors="pt").input_ids.to("cpu")
+            output = model.generate(input_ids, max_new_tokens=10)
+            answer = tokenizer.decode(output[0], skip_special_tokens=True)
+            logger.info(f"Test output: {answer}")
+        except Exception as e:
+            logger.error(f"Test inference failed: {e}")
 
         
 
