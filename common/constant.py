@@ -3,9 +3,7 @@ We use flask to build the API server for the local LLMs. The following is the po
 """
 
 LLM_SERVER_MAP = {
-    """
-    models -- server_url
-    """
+    "/kaggle/working/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "https://c4ed-34-147-110-164.ngrok-free.app"
 }
 
 
@@ -18,8 +16,10 @@ API_SERVER_METAQA = "http://localhost:9902"
 Load tool description for different DBs. We use short description for the fine-tuned LLMs.
 """
 
+PREFIX_DIR = "/kaggle/input/kbqa-modules/"
+
 # cwq/webqsp (for FB)
-with open(f"fewshot_demo/cwq/tooldesc.txt", "r") as f:
+with open(f"{PREFIX_DIR}fewshot_demo/cwq/tooldesc.txt", "r") as f:
     cwq_desc = f.readlines()
 cwq_desc = [i for i in cwq_desc if not i.startswith("#")]
 TOOL_DESC_FULL_FB = "".join(cwq_desc).strip()
@@ -40,7 +40,7 @@ Description: Parameter `sparql` MUST start with "SELECT ?e WHERE". The tool will
 Now, Think and solve the following complex questions step by step:"""
 
 # kqapro
-with open(f"fewshot_demo/kqapro/tooldesc.txt", "r") as f:
+with open(f"{PREFIX_DIR}fewshot_demo/kqapro/tooldesc.txt", "r") as f:
     kqapro_desc = f.readlines()
 kqapro_desc = [i for i in kqapro_desc if not i.startswith("#")]
 
@@ -62,7 +62,7 @@ Description: The parameter sparql MUST start with "SELECT ?e WHERE". The tool wi
 Now, Think and solve the following complex questions step by step:"""
 
 # metaqa (short enough)
-with open(f"fewshot_demo/metaqa/tooldesc.txt", "r") as f:
+with open(f"{PREFIX_DIR}fewshot_demo/metaqa/tooldesc.txt", "r") as f:
     metaqa_desc = f.readlines()
 metaqa_desc = [i for i in metaqa_desc if not i.startswith("#")]
 TOOL_DESC_FULL_METAQA = "".join(metaqa_desc).strip()

@@ -2,8 +2,13 @@ import json
 
 import requests
 from loguru import logger
+import subprocess
+import shlex
+import tempfile
+import os
 
-from common.constant import LLM_FINETUNING_SERVER_MAP
+
+from common.constant import LLM_SERVER_MAP
 
 headers = {"Content-Type": "application/json", "accept": "application/json"}
 vllm_client = None
@@ -54,10 +59,14 @@ def local_LLM_api(
         "01-ai/Yi-34B-Chat",
     ]:
         if model.endswith(mname):
-            url = f"{LLM_FINETUNING_SERVER_MAP[model]}/common"
+            url = f"{LLM_SERVER_MAP[model]}/common"
 
-    url = url if url else f"{LLM_FINETUNING_SERVER_MAP[model]}/{db}"
+    url = url if url else f"{LLM_SERVER_MAP[model]}/{db}"
     # url = "http://192.168.4.200:18100/fb"
+
+    logger.debug(f"LLM API request: {url}")
+    # logger.debug(f"LLM API request: {messages}")
+    # logger.debug(f"LLM API request: {prompt}")
 
     messages = (
         messages
@@ -93,6 +102,29 @@ def local_LLM_api(
         logger.error(f"messages: {messages}")
         return None
 
+    # using curl instead
+    # import json
+    # # Ghi payload ra file tạm
+    # with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp:
+    #     json.dump(data, temp)
+    #     temp_path = temp.name
+
+    # try:
+    #     curl_cmd = f'curl -X POST "{url}" -H "Content-Type: application/json" -H "accept: application/json" -d @{temp_path} --silent'
+    #     result = subprocess.run(shlex.split(curl_cmd), capture_output=True, text=True, timeout=120)
+    #     if result.returncode != 0:
+    #         logger.error(f"Curl failed: {result.stderr}")
+    #         return None
+    #     try:
+    #         return json.loads(result.stdout)
+    #     except Exception as e:
+    #         logger.error(f"Cannot parse curl response: {result.stdout[:200]} ...")
+    #         return None
+    # finally:
+    #     if os.path.exists(temp_path):
+    #         os.unlink(temp_path)
+
+
 
 def local_vLLM_api(
     model,
@@ -110,12 +142,12 @@ def local_vLLM_api(
 ):
     global vllm_client
     if vllm_client is None:
-        assert model in LLM_FINETUNING_SERVER_MAP
+        assert model in LLM_SERVER_MAP
         from openai import OpenAI
 
         # Set OpenAI's API key and API base to use vLLM's API server.
         openai_api_key = "EMPTY"
-        openai_api_base = LLM_FINETUNING_SERVER_MAP[model] + "/v1"
+        openai_api_base = LLM_SERVER_MAP[model] + "/v1"
 
         vllm_client = OpenAI(
             api_key=openai_api_key,

@@ -164,7 +164,9 @@ def chat_with_LLM(
     assert "question" in d, "question must be provided."
     assert save_dir is not None, "save_dir must be provided."
 
-    logger.info(f"model_name: {model_name}")
+    logger.info(f"Database: {db}")
+    logger.info(f"Model name: {model_name}")
+    logger.info(f"Save dir: {save_dir}")
 
 
     if model_name.startswith("gpt-"):
@@ -254,6 +256,7 @@ def chat_with_LLM(
                 temperature=0.2,  
                 **config,
             )
+            
         except BadRequestError as e:
             logger.error(f"BadRequestError: {e}")
             return

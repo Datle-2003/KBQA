@@ -282,8 +282,8 @@ class KBQARunner:
         return [d for d in data if d["id"] not in self.skip_ids]
 
     def run(self):
-        logger.info(f"Running KBQA with model: {self.model_name}")
         os.makedirs(self.save_dir, exist_ok=True)
+        logger.info(f"Dataset: {self.dataset}, Model: {self.model_name}, Save dir: {self.save_dir}")
 
         demos = self._load_demo_dialogs()
         tool_demos = self.tool_desc + "\n\n" + "\n\n".join(demos)
