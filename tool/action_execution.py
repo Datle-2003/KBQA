@@ -182,21 +182,7 @@ def chat_with_LLM(
 
     # for local LLM server.
     elif model_name in LLM_SERVER_MAP:
-        try:
-            import torch
-            cuda_available = torch.cuda.is_available()
-        except Exception as e:
-            cuda_available = False
-            logger.error(f"torch is not installed. {e}")
-
-
-        if cuda_available:
-            from api.api_llm_client import local_vLLM_api as _llm_func
-            logger.info("Using local LLM server.")
-        else:
-            from api.api_llm_client import local_LLM_api as _llm_func
-            logger.info("Using llm server.")
-        
+        from api.api_llm_client import local_vLLM_api as _llm_func
         config = {  
             "max_new_tokens": 512,
             "do_sample": True,
@@ -256,7 +242,7 @@ def chat_with_LLM(
                 temperature=0.2,  
                 **config,
             )
-            
+
         except BadRequestError as e:
             logger.error(f"BadRequestError: {e}")
             return

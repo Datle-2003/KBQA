@@ -13,29 +13,3 @@ python api/api_llm_dialog_server.py \
     --use_cpu=True
 
 
-# curl -X POST http://localhost:18210/kqapro \
-#   -H "Content-Type: application/json" \
-#   -d '{
-#     "messages": [
-#       {"role": "user", "content": "Who is the president of the United States?"}
-#     ],
-#     "db": "kqapro",
-#     "use_cpu": true,
-#     "max_new_tokens": 256,
-#     "do_sample": false, 
-#     "num_return_sequences": 1
-#   }'
-
-
-# curl -X POST http://localhost:18210/v1/chat/completions \
-#   -H "Content-Type: application/json" \
-#   -d '{
-#     "model": "LLMs/TinyLlama/TinyLlama-1.1B-Chat-v1.0/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6/",
-#     "messages": [
-#       {"role": "user", "content": "Who is the president of the United States?"}
-#     ],
-#     "use_cpu": true,
-#     "temperature": 0,
-#     "max_tokens": 256,
-#     "n": 1
-#   }'

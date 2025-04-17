@@ -12,11 +12,8 @@ def server_chat(
     max_tokens=256,
     **kwargs
 ):
-    """Client function to send requests to the FastAPI server instead of OpenAI API"""
-    
     server_url = "https://a5ce-34-90-63-121.ngrok-free.app/kqapro" 
     
-    # Nếu chỉ có prompt, chuyển thành messages
     if prompt and not messages:
         messages = [{"role": "user", "content": prompt}]
     
@@ -31,7 +28,6 @@ def server_chat(
         "temperature": temperature,
         "repetition_penalty": 1.0,
         "num_return_sequences": n,
-        "use_cpu": True  # Theo yêu cầu của bạn
     }
     
     try:
@@ -47,7 +43,6 @@ def server_chat(
         
         result = response.json()
         
-        # Chuyển định dạng của response để giống với response của OpenAI API
         formatted_response = {
             "choices": [
                 {

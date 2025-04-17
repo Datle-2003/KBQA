@@ -174,7 +174,7 @@ def local_vLLM_api(
         max_tokens=max_new_tokens,
         frequency_penalty=repetition_penalty,
     )
-    chat_response = json.loads(chat_response.json())
+    chat_response = json.loads(chat_response.model_dump_json())
     # except Exception as e:
     #     if "Please reduce the length" in e.body["message"]:
 

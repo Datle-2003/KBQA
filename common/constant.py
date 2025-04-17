@@ -3,7 +3,7 @@ We use flask to build the API server for the local LLMs. The following is the po
 """
 
 LLM_SERVER_MAP = {
-    "/kaggle/working/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "https://7618-35-237-13-65.ngrok-free.app"
+    "/kaggle/working/Llama-2-7b-hf/models--meta-llama--Llama-2-7b-hf/snapshots/01c7f73d771dfac7d292323805ebc428287df4f9/": "https://c9e2-34-23-138-137.ngrok-free.app",
 }
 
 
@@ -16,7 +16,7 @@ API_SERVER_METAQA = "http://localhost:9902"
 Load tool description for different DBs. We use short description for the fine-tuned LLMs.
 """
 
-PREFIX_DIR = "/kaggle/input/kbqa-modules/"
+PREFIX_DIR = "/kaggle/working/kbqa-modules"
 
 # cwq/webqsp (for FB)
 with open(f"{PREFIX_DIR}fewshot_demo/cwq/tooldesc.txt", "r") as f:

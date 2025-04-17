@@ -73,25 +73,16 @@ def single(d, instruction, demos, model_name, n, save_dir):
     q = d["question"].strip()
     prompt = f"{instruction}\n\n{demos}\n\nQ: {q}\nA: "
 
-    # response = chatgpt(
-    #     prompt=prompt,
-    #     model=model_name,
-    #     temperature=0.7,
-    #     top_p=1,
-    #     n=n,
-    #     stop=["\n\n", "\n"],
-    #     max_tokens=256,
-    # )
-    response = server_chat(
+    response = chatgpt(
         prompt=prompt,
         model=model_name,
         temperature=0.7,
         top_p=1,
         n=n,
         stop=["\n\n", "\n"],
-        max_tokens=512,
+        max_tokens=256,
     )
-
+   
     if response is None or "usage" not in response:
         print(f"response is None. id: {d['id']}")
         print(response)

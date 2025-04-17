@@ -159,19 +159,9 @@ def history_to_input(messages: List[str], desc="short", db="kqapro") -> str:
     return text
 
 
-def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False, use_cpu=False):
-    # Handle conflicts in parameter settings
-    # Basicly load tokenizer and model
+def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False):
     if use_vllm and use_mii:
         raise Exception("use_vllm and use_mii cannot be True at the same time")
-    
-    if use_vllm and use_cpu:
-        logger.warning("vLLM requires CUDA. Disabling vLLM and using CPU mode.")
-        use_vllm = False
-    
-    if use_mii and use_cpu:
-        logger.warning("MII requires CUDA. Disabling MII and using CPU mode.")
-        use_mii = False
     
     # Flag for using open source LLM inference
     FLAG_OPEN_LLM_INFER = False
@@ -188,39 +178,11 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             sleep(5)
             break
     
-    # Determine device based on CPU flag
-    device = "cpu" if use_cpu else "cuda:0" if torch.cuda.is_available() else "cpu"
-    if device == "cpu" and not use_cpu:
-        logger.warning("CUDA not available. Defaulting to CPU mode.")
-        use_cpu = True
-    
     tokenizer = load_tokenizer(model_name_or_path, 8192)
     logger.info(f"Tokenizer loaded for {model_name_or_path}")
 
-    if use_cpu:
-        from transformers import AutoModelForCausalLM
         
-        logger.info(f"Loading model {model_name_or_path} in CPU mode...")
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name_or_path,
-            device_map="cpu",
-            torch_dtype=torch.float16,
-            low_cpu_mem_usage=True
-        )
-        logger.info("CPU model loaded successfully")
-        try:
-            logger.info("Testing model with a simple prompt after loading...")
-            test_input = "Q: What is the capital of France?\nThought:"
-            input_ids = tokenizer(test_input, return_tensors="pt").input_ids.to("cpu")
-            output = model.generate(input_ids, max_new_tokens=10)
-            answer = tokenizer.decode(output[0], skip_special_tokens=True)
-            logger.info(f"Test output: {answer}")
-        except Exception as e:
-            logger.error(f"Test inference failed: {e}")
-
-        
-
-    elif use_vllm:
+    if use_vllm:
         from vllm import LLM, SamplingParams
         
         model = LLM(
@@ -244,6 +206,17 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
     else:
         model = load_model(model_name_or_path, training=False)
         logger.info("Standard model loaded")
+
+    
+    try:
+        logger.info("Testing model with a simple prompt after loading...")
+        test_input = "Q: What is the capital of France?\nThought:"
+        input_ids = tokenizer(test_input, return_tensors="pt").input_ids.to('cuda')
+        output = model.generate(input_ids, max_new_tokens=10)
+        answer = tokenizer.decode(output[0], skip_special_tokens=True)
+        logger.info(f"Test output: {answer}")
+    except Exception as e:
+        logger.error(f"Test inference failed: {e}")
 
 
     def _gen(messages: Union[List[str], List[Dict]], stop: List[str] = None, **kwargs):
@@ -274,13 +247,12 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         try:
             logger.info("Testing model with a simple prompt after loading...")
             test_input = "Q: What is the capital of America?\nThought:"
-            input_ids = tokenizer(test_input, return_tensors="pt").input_ids.to("cpu")
+            input_ids = tokenizer(test_input, return_tensors="pt").input_ids.to("cuda")
             output = model.generate(input_ids, max_new_tokens=10)
             answer = tokenizer.decode(output[0], skip_special_tokens=True)
             logger.info(f"Test output: {answer}")
         except Exception as e:
             logger.error(f"Test inference failed: {e}")
-
 
 
         import time
@@ -308,7 +280,7 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
 
         # Set up generation config with defaults
         gen_config = {
-            "max_new_tokens": 512 if not use_cpu else 320,
+            "max_new_tokens": 512,
             "temperature": 0.1,
             "do_sample": True,
             "top_p": 1,
@@ -319,15 +291,9 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         # Update with user-provided parameters
         gen_config.update(kwargs)
         
-        # CPU-specific parameter adjustments
-        if use_cpu:
-            if gen_config.get("num_beams", 1) > 1:
-                logger.warning(f"Reducing num_beams from {gen_config['num_beams']} to 1 for CPU mode")
-                gen_config["num_beams"] = 1
-                
         # Tokenize input
         logger.info("Tokenizing input...")
-        input_ids = tokenizer(query, return_tensors="pt", truncation=True).input_ids.to(device)
+        input_ids = tokenizer(query, return_tensors="pt", truncation=True).input_ids.to('cuda')
         logger.info(f"Input_ids shape: {input_ids.shape}")
 
         logger.info("Checking model forward pass...")
@@ -378,7 +344,7 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
             gen_config["return_dict_in_generate"] = True
             logger.info("Using HuggingFace generate...")
             stopping_criteria = StoppingCriteriaList([])
-            stopping_criteria.append(MaxTimeCriteria(max_time=300 if use_cpu else 120))  # Longer timeout for CPU
+            stopping_criteria.append(MaxTimeCriteria(max_time=300))
 
             if stop is not None:
                 stopping_criteria.append(StoppingCriteriaSub(tokenizer=tokenizer, stop=stop))
@@ -409,24 +375,6 @@ def predictor_history(model_name_or_path, db=None, use_vllm=False, use_mii=False
         return response
 
     return _gen
-
-
-def test3():
-    # Test with CPU mode
-    llm = predictor_history("LLMs/mistralai/Mistral-7B-Instruct-v0.2", use_cpu=True)
-    res = llm(
-        [
-            {"role": "user", "content": "Q: What currency does China use?"},
-        ],
-        stop=["\n\n", "\n3."],
-        num_return_sequences=1,
-    )
-    print(res)
-
-    response = res
-    print(response["usage"])
-    print(response["usage"]["prompt_tokens"])
-    print(response["usage"]["completion_tokens"])
 
 def test():
     llm = predictor_history("LLMs/mistralai/Mistral-7B-Instruct-v0.2", use_vllm=1)

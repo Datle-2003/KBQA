@@ -217,6 +217,9 @@ class KBQARunner:
         self.save_dir = self._get_save_dir()
         self.skip_ids = set()
 
+        # demo 
+        self.tool_desc = "This is a question answering task. Given a Question, you need to write out the reasoning processes and the answers in python list format. Follow the demos' format strictly."
+
     def _get_tool_desc(self):
         if self.dataset in ["webqsp", "cwq"]:
             return "fb", TOOL_DESC_FULL_FB
@@ -288,11 +291,12 @@ class KBQARunner:
         demos = self._load_demo_dialogs()
         tool_demos = self.tool_desc + "\n\n" + "\n\n".join(demos)
 
-        print("=== TOOL + DEMOS ===\n", tool_demos, "\n")
+    
 
         data = self._prepare_data()
         data = self._skip_existing(data)
-        logger.info(f"Final data size: {len(data)}")
+
+    
 
 
         # return 
